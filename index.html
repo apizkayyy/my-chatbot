@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Kopi Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+    #top { display: flex; justify-content: space-between; align-items: center; }
+    #chat { border: 1px solid #ccc; height: 400px; overflow-y: auto; padding: 10px; }
+    .user { color: #0066cc; margin: 8px 0; white-space: pre-wrap; }
+    .bot  { color: #222; margin: 8px 0; background: #f4f4f4; padding: 6px 10px; border-radius: 6px; }
+    .bot p { margin: 4px 0; }
+    #row  { display: flex; gap: 8px; margin-top: 10px; }
+    #msg  { flex: 1; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div id="top">
+    <h2>Kopi Chat</h2>
+    <button id="newChat">New chat</button>
+  </div>
+  <div id="chat"></div>
+  <div id="row">
+    <input id="msg" placeholder="Type a message..." autofocus>
+    <button id="send">Send</button>
+  </div>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const msg = document.getElementById("msg");
+    const sendBtn = document.getElementById("send");
+    const newChatBtn = document.getElementById("newChat");
+
+    // ---- Session ID: reuse a saved one, or create and save a new one ----
+    let sessionId = localStorage.getItem("sessionId");
+    if (!sessionId) {
+      sessionId = "web-" + Math.random().toString(36).slice(2);
+      localStorage.setItem("sessionId", sessionId);
+    }
+
+    // ---- Helpers ----
+    function renderMarkdown(rawText) {
+      return DOMPurify.sanitize(marked.parse(rawText));
+    }
+
+    function addUserLine(text) {
+      const div = document.createElement("div");
+      div.className = "user";
+      div.textContent = "You: " + text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addBotLine(rawText) {
+      const div = document.createElement("div");
+      div.className = "bot";
+      div.innerHTML = renderMarkdown(rawText);
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return div;
+    }
+
+    // ---- Load old messages when the page opens ----
+    async function loadOldMessages() {
+      const res = await fetch("/history/" + sessionId);
+      const messages = await res.json();
+      for (const m of messages) {
+        if (m.role === "user") addUserLine(m.content);
+        else if (m.role === "assistant") addBotLine(m.content);
+      }
+    }
+
+    // ---- Send a message and stream the reply ----
+    async function send() {
+      const text = msg.value.trim();
+      if (!text) return;
+      msg.value = "";
+      sendBtn.disabled = true;
+
+      addUserLine(text);
+      const botDiv = addBotLine("");
+      let rawReply = "";
+
+      const res = await fetch("/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, message: text }),
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop();
+
+        for (const event of events) {
+          if (!event.startsWith("data: ")) continue;
+          const data = event.slice(6);
+          if (data === "[DONE]") continue;
+          rawReply += JSON.parse(data);
+          botDiv.innerHTML = renderMarkdown(rawReply);
+          chat.scrollTop = chat.scrollHeight;
+        }
+      }
+
+      sendBtn.disabled = false;
+      msg.focus();
+    }
+
+    // ---- Start a fresh conversation ----
+    newChatBtn.onclick = () => {
+      localStorage.removeItem("sessionId");
+      location.reload();
+    };
+
+    sendBtn.onclick = send;
+    msg.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") send();
+    });
+
+    loadOldMessages();
+  </script>
+</body>
+</html>
