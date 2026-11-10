@@ -22,6 +22,12 @@ The bot answers from `knowledge.txt` instead of a hard-coded prompt.
 - **Query rewriting:** follow-ups like "And how much does it cost?" are rewritten using chat history before searching ("How much does parking cost?"). Without this, retrieval lost the topic on follow-up questions.
 - **Rewritten query is also passed to the answering model**, which fixed contradictory "I don't know, but..." answers.
 
+## Conversation memory
+
+- Full history is always stored in SQLite and shown in the UI
+- Only a rolling summary plus the most recent messages are sent to the model, which keeps cost and latency flat as chats grow
+- The summarizer is told what to keep (name, dietary needs, bookings) and not to record "I don't know" replies
+
 ## Tech stack
 
 Python, FastAPI, Uvicorn, OpenAI API, SQLite, vanilla JavaScript
@@ -50,6 +56,7 @@ index.html       Browser chat UI
 view_db.py       Small script to inspect chat.db
 knowledge.txt    Knowledge base for the RAG (one topic per paragraph)
 rag.py           RAG pipeline: chunking, embeddings, similarity search, query rewriting
+memory.py        Store the summarize conversation
 ```
 
 ## Getting started
@@ -72,12 +79,14 @@ Open http://127.0.0.1:8000
 
 ## API endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/chat` | Full reply as JSON |
-| POST | `/chat/stream` | Streamed reply (SSE) |
-| GET | `/history/{session_id}` | Stored conversation |
-| GET | `/sessions` | List of session IDs |
+| Method | Path                    | Description                  |
+|--------|-------------------------|------------------------------|
+| POST | `/chat`                 | Full reply as JSON           |
+| POST | `/chat/stream`          | Streamed reply (SSE)         |
+| GET | `/history/{session_id}` | Stored conversation          |
+| GET | `/sessions`             | List of session IDs          |
+| GET | `/summary/{session_id}` | List summary of conversation |
+
 
 Request body for both POST endpoints:
 
@@ -89,7 +98,7 @@ Request body for both POST endpoints:
 
 - [x] Phase 1: streaming chatbot, FastAPI, SQLite memory, web UI
 - [x] Phase 2: RAG over documents (chunking, embeddings, retrieval)
-- [ ] Trim or summarize long conversations to control cost
+- [x] Trim or summarize long conversations to control cost
 - [ ] Docker deployment
 - [ ] Tool calling (e.g. check order status)
 

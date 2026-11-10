@@ -1,5 +1,5 @@
 from openai import OpenAI
-from config import OPENAI_API_KEY, MODEL, MAX_TOKENS
+from config import OPENAI_API_KEY, OPENAI_MODEL, MAX_TOKENS
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -31,7 +31,7 @@ while True:
 
     ##stream=True,so the output will be sent piece by piece, not wait until finish to send whole output
     stream = client.chat.completions.create(
-        model=MODEL,
+        model=OPENAI_MODEL,
         max_tokens=MAX_TOKENS,
         messages=history,
         stream=True,

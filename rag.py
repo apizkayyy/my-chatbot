@@ -84,7 +84,7 @@ def build_context(question: str, history: list) -> tuple[str, str]:
     results = search(search_question, _chunks, _vectors, top_k=TOP_K)
     good = [chunk for score, chunk in results if score >= SCORE_THRESHOLD]
 
-    context = "\n\n".join(good) if good else "No relevant information found."
+    context = "\n\n".join(good) if good else "Nothing relevant was found in the cafe knowledge base."
     return context, search_question
 
 
