@@ -12,6 +12,16 @@ Built step by step to learn how LLM chatbots work under the hood.
 - System prompt with role, scope, knowledge, and "I don't know" handling
 - Terminal version for quick experiments
 
+## RAG Pipeline
+
+The bot answers from `knowledge.txt` instead of a hard-coded prompt.
+
+- **Chunking:** one paragraph per topic
+- **Embeddings:** OpenAI `text-embedding-3-small`, computed once at startup
+- **Retrieval:** dot-product similarity, top 3 chunks, filtered by a score threshold (0.25) so off-topic questions get "I don't know" instead of a made-up answer
+- **Query rewriting:** follow-ups like "And how much does it cost?" are rewritten using chat history before searching ("How much does parking cost?"). Without this, retrieval lost the topic on follow-up questions.
+- **Rewritten query is also passed to the answering model**, which fixed contradictory "I don't know, but..." answers.
+
 ## Tech stack
 
 Python, FastAPI, Uvicorn, OpenAI API, SQLite, vanilla JavaScript
@@ -38,6 +48,8 @@ config.py        Settings and system prompt
 chat.py          Terminal chatbot version
 index.html       Browser chat UI
 view_db.py       Small script to inspect chat.db
+knowledge.txt    Knowledge base for the RAG (one topic per paragraph)
+rag.py           RAG pipeline: chunking, embeddings, similarity search, query rewriting
 ```
 
 ## Getting started
@@ -76,7 +88,7 @@ Request body for both POST endpoints:
 ## Roadmap
 
 - [x] Phase 1: streaming chatbot, FastAPI, SQLite memory, web UI
-- [ ] Phase 2: RAG over documents (chunking, embeddings, retrieval)
+- [x] Phase 2: RAG over documents (chunking, embeddings, retrieval)
 - [ ] Trim or summarize long conversations to control cost
 - [ ] Docker deployment
 - [ ] Tool calling (e.g. check order status)

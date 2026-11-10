@@ -8,6 +8,8 @@ from openai import OpenAI
 from config import OPENAI_API_KEY, MODEL, MAX_TOKENS
 from db import init_db, save_message, load_history, list_sessions
 
+from rag import build_context
+
 app = FastAPI()
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -33,6 +35,15 @@ def chat(req: ChatRequest):
     save_message(req.session_id, "user", req.message)
     history = load_history(req.session_id)
 
+    context, search_question = build_context(req.message, history)
+    history[-1] = {
+        "role": "user",
+        "content": (
+            f"CONTEXT:\n{context}\n\n"
+            f"CUSTOMER MESSAGE: {req.message}\n"
+            f"WHAT THE CUSTOMER MEANS: {search_question}"
+        ),
+    }
     response = client.chat.completions.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
@@ -49,6 +60,16 @@ def chat(req: ChatRequest):
 def chat_stream(req: ChatRequest):
     save_message(req.session_id, "user", req.message)
     history = load_history(req.session_id)
+
+    context, search_question = build_context(req.message, history)
+    history[-1] = {
+        "role": "user",
+        "content": (
+            f"CONTEXT:\n{context}\n\n"
+            f"CUSTOMER MESSAGE: {req.message}\n"
+            f"WHAT THE CUSTOMER MEANS: {search_question}"
+        ),
+    }
 
     def generate():
         stream = client.chat.completions.create(
