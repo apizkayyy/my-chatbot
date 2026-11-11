@@ -12,18 +12,18 @@ Knowledge is loaded from knowledge.txt (one chunk per paragraph) and embedded on
 from openai import OpenAI
 from config import OPENAI_API_KEY, OPENAI_MODEL, SCORE_THRESHOLD, TOP_K, EMBED_MODEL
 
+from sentence_transformers import SentenceTransformer
+
 client = OpenAI(api_key=OPENAI_API_KEY)
+embedder = SentenceTransformer(EMBED_MODEL)
 
 def load_chunks(path: str) -> list[str]:
     with open(path, encoding="utf-8") as f:
         text = f.read()
     return [c.strip() for c in text.split("\n\n") if c.strip()]
 
-
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    result = client.embeddings.create(model=EMBED_MODEL, input=texts)
-    return [item.embedding for item in result.data]
-
+    return embedder.encode(texts, normalize_embeddings=True).tolist()
 
 def dot(a: list[float], b: list[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
